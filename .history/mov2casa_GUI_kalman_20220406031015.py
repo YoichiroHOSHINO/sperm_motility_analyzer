@@ -1039,21 +1039,21 @@ def writeResultMovFast(ResultFolder, filename, movarray, movBWarray, AllPoints, 
     font = ImageFont.truetype("arial.ttf", size=14)
     if not os.path.exists(ResultFolder + filename_with_arg + '_trackimgs'):
         os.mkdir(ResultFolder + filename_with_arg + '_trackimgs')
-    Points = np.unique(df.loc[:,'Point'])
+    Points = np.unique(df[:,h.index('Point')])
     for p in Points:
         if p > 0:
             withdata = '_frag'
             clr = 'blue'
-            frames = df[df.Point == p].loc[;,'Framelength'].max()
+            frames = df[df.Point == p].loc['Framelength'].max()
             if frames >= max_frame:
                 withdata = '_trck'
                 clr = 'red'
             Track = Track_base.copy()
             dTL = ImageDraw.Draw(Track)
-            #df_p_idx = np.where(df[:,h.index('Point')] == p)
-            p_x = df[df.Point == p].loc[:,'x']
-            p_y = df[df.Point == p].loc[:,'y']
-            dTL.text((p_x/2,p_y/2),df[df.Point == p].loc[:,'Frame'], fill=clr, font=font)
+            df_p_idx = np.where(df[:,h.index('Point')] == p)
+            p_x = int(df[df_p_idx[0][0],h.index('x')])
+            p_y = int(df[df_p_idx[0][0],h.index('y')])
+            dTL.text((p_x/2,p_y/2),df[df_p_idx[0][0],h.index('Frame')], fill=clr, font=font)
             for idx in df_p_idx[0]:
                 p_pre_x = int(df[idx,h.index('pre_x')])
                 p_pre_y = int(df[idx,h.index('pre_y')])

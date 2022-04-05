@@ -16,7 +16,6 @@ import cv2
 from tqdm import tqdm
 from itertools import chain
 from PIL import Image, ImageDraw
-from PIL import ImageFont
 import math
 import time
 
@@ -163,7 +162,7 @@ def doAnalysis(movie_files_path):
                                             "Circle_Rate"])
         SaveAllResults(tmpdf, ResultFolder)
 
-        writeResultMovFast(ResultFolder, f, moviearray, movieBWarray, dfs, start_frame, 0, h)
+        writeResultMovFast(ResultFolder, f, moviearray, movieBWarray, dfs, start_frame, 0)
         #writeResultMovFast(MovieFolder, ResultFolder, f, movarray, movBWarray, dfs, start_second, 1)
 
         end_time = time.perf_counter()
@@ -957,7 +956,7 @@ def SaveAllResults(tmpdf, ResultFolder):
 
 
 # 認識結果動画の書き出し
-def writeResultMovFast(ResultFolder, filename, movarray, movBWarray, AllPoints, start_second, BW, h):
+def writeResultMovFast(ResultFolder, filename, movarray, movBWarray, AllPoints, start_second, BW):
     print ('トラックを動画に書き出しています。')
     df = AllPoints
 
@@ -1035,25 +1034,25 @@ def writeResultMovFast(ResultFolder, filename, movarray, movBWarray, AllPoints, 
     # 軌跡ごとイメージのベース作成
     Track_base = Image.new('RGB', (int(outwidth/2),int(outheight/2)), 'white')
     
-    # ポイント別軌跡保存 pandas df を numpy arrayに変換する必要がある。
+    # ポイント別軌跡保存
     font = ImageFont.truetype("arial.ttf", size=14)
     if not os.path.exists(ResultFolder + filename_with_arg + '_trackimgs'):
         os.mkdir(ResultFolder + filename_with_arg + '_trackimgs')
-    Points = np.unique(df.loc[:,'Point'])
+    Points = np.unique(df[:,h.index('Point')].astype(np.int64))
     for p in Points:
         if p > 0:
             withdata = '_frag'
             clr = 'blue'
-            frames = df[df.Point == p].loc[;,'Framelength'].max()
+            frames = df[df.Point == p].loc(:, 'Framelength').max()
             if frames >= max_frame:
                 withdata = '_trck'
                 clr = 'red'
             Track = Track_base.copy()
             dTL = ImageDraw.Draw(Track)
-            #df_p_idx = np.where(df[:,h.index('Point')] == p)
-            p_x = df[df.Point == p].loc[:,'x']
-            p_y = df[df.Point == p].loc[:,'y']
-            dTL.text((p_x/2,p_y/2),df[df.Point == p].loc[:,'Frame'], fill=clr, font=font)
+            df_p_idx = np.where(df[:,h.index('Point')] == p)
+            p_x = int(df[df_p_idx[0][0],h.index('x')])
+            p_y = int(df[df_p_idx[0][0],h.index('y')])
+            dTL.text((p_x/2,p_y/2),df[df_p_idx[0][0],h.index('Frame')], fill=clr, font=font)
             for idx in df_p_idx[0]:
                 p_pre_x = int(df[idx,h.index('pre_x')])
                 p_pre_y = int(df[idx,h.index('pre_y')])
