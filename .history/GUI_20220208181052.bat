@@ -1,0 +1,1 @@
+cmd /k python casa_app2.py
