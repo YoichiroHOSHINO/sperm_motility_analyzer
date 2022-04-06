@@ -91,8 +91,8 @@ def doAnalysis(movie_files_path):
         dfck = np.where(df[:,h.index('fix_past')] > 0)
         if dfck[0].shape[0] > 0:
 
-            VCL_VAP = makeVCL_VAP(df, h)
-            #VAP = makeVAP(df, microscale, h)
+            VCL = makeVCL(df, h)
+            VAP = makeVAP(df, microscale, h)
             VSL = makeVSL(df, microscale, h)
             
             BCF = makeBCF(df, h)
@@ -101,9 +101,8 @@ def doAnalysis(movie_files_path):
             FRD = makeFRD(df, microscale, h)
             ANG = makeANG(df, h)
 
-            #RF = pd.merge(VCL, VAP, on="Point")
-            #RF = pd.merge(RF, VSL.loc[:, ["Point", "VSL"]], on="Point")
-            RF = pd.merge(VCL_VAP, VSL.loc[:, ["Point", "VSL"]], on="Point")
+            RF = pd.merge(VCL, VAP, on="Point")
+            RF = pd.merge(RF, VSL.loc[:, ["Point", "VSL"]], on="Point")
             RF = pd.merge(RF, BCF, on='Point')
             RF = pd.merge(RF, ALH, on='Point')
             RF["LIN"] = RF.VSL / RF.VCL
@@ -751,44 +750,23 @@ def ARtoDF(df, h):
  
 
 #VCL算出
-def makeVCL_VAP(df, h):
+def makeVCL(df, h):
     dfidx = np.where((df[:,h.index('Point')] == df[:,h.index('Point')])&(df[:,h.index('area')] > 0))
     df = df[dfidx[0]]
     maxpoint = int(df[:,h.index('Point')].max()) + 1
     VCLlist = []
-    print ('VCL,VAPを算出しています。')
+    print ('VCLを算出しています。')
     for i in tqdm(range(maxpoint)):
         pointdfidx = np.where(df[:,h.index('Point')] == i)
         pointdf = df[pointdfidx[0]]
-        maxFrame = pointdf[:,h.index('Framelength')].max()
-        idx = np.where(pointdf[:,h.index('Framelength')] == maxFrame)
-        RunLength = pointdf[idx[0][0],h.index('Runlength')]
-        Ave_maxFrame = pointdf[:,h.index('Frame')].max()
-        Ave_idx = np.where(pointdf[:,h.index('Frame')] == Ave_maxFrame)
-        Ave_RunLength = pointdf[Ave_idx[0][0],h.index('Ave_RunLength')]        
+        maxFrame = pointdf[:,h.index('Frame')].max()
+        idx = np.where(pointdf[:,h.index('Frame')] == maxFrame)
+        length = pointdf[idx[0][0],h.index('Runlength')]
         m = pointdf[0,h.index('motile')]
-        VCLlist.append([i,m,maxFrame,RunLength,Ave_maxFrame,Ave_RunLength])
+        VCLlist.append([i,m,maxFrame,length])
     VCLframe = np.array(VCLlist, dtype='float')
-    VCLframe = pd.DataFrame(VCLframe, columns=["Point", "motile", "FL_VCL", "VCL", "FL_VAP", "VAP"])
+    VCLframe = pd.DataFrame(VCLframe, columns=["Point", "motile", "FL_VCL", "VCL"])
     return VCLframe
-
-#def makeVCL(df, h):
-#    dfidx = np.where((df[:,h.index('Point')] == df[:,h.index('Point')])&(df[:,h.index('area')] > 0))
-#    df = df[dfidx[0]]
-#    maxpoint = int(df[:,h.index('Point')].max()) + 1
-#    VCLlist = []
-#    print ('VCLを算出しています。')
-#    for i in tqdm(range(maxpoint)):
-#        pointdfidx = np.where(df[:,h.index('Point')] == i)
-#        pointdf = df[pointdfidx[0]]
-#        maxFrame = pointdf[:,h.index('Frame')].max()
-#        idx = np.where(pointdf[:,h.index('Frame')] == maxFrame)
-#        length = pointdf[idx[0][0],h.index('Runlength')]
-#        m = pointdf[0,h.index('motile')]
-#        VCLlist.append([i,m,maxFrame,length])
-#    VCLframe = np.array(VCLlist, dtype='float')
-#    VCLframe = pd.DataFrame(VCLframe, columns=["Point", "motile", "FL_VCL", "VCL"])
-#    return VCLframe
 
 #VAP.VSL算出
 def makeVAP(df, microscale, h):

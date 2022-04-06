@@ -88,11 +88,11 @@ def doAnalysis(movie_files_path):
         dfs = pandasdf.sort_values(by=['Point','Frame'], ascending=True)
         
         
-        dfck = np.where(df[:,h.index('fix_past')] > 0)
+        dfck = np.where(df[:,h.index('fix')] > 0)
         if dfck[0].shape[0] > 0:
 
-            VCL_VAP = makeVCL_VAP(df, h)
-            #VAP = makeVAP(df, microscale, h)
+            VCL = makeVCL(df, h)
+            VAP = makeVAP(df, microscale, h)
             VSL = makeVSL(df, microscale, h)
             
             BCF = makeBCF(df, h)
@@ -101,9 +101,8 @@ def doAnalysis(movie_files_path):
             FRD = makeFRD(df, microscale, h)
             ANG = makeANG(df, h)
 
-            #RF = pd.merge(VCL, VAP, on="Point")
-            #RF = pd.merge(RF, VSL.loc[:, ["Point", "VSL"]], on="Point")
-            RF = pd.merge(VCL_VAP, VSL.loc[:, ["Point", "VSL"]], on="Point")
+            RF = pd.merge(VCL, VAP, on="Point")
+            RF = pd.merge(RF, VSL.loc[:, ["Point", "VSL"]], on="Point")
             RF = pd.merge(RF, BCF, on='Point')
             RF = pd.merge(RF, ALH, on='Point')
             RF["LIN"] = RF.VSL / RF.VCL
@@ -116,9 +115,7 @@ def doAnalysis(movie_files_path):
 
         RF.fillna(0, inplace = True)
         RF, dfs = Add_decision_simple(RF, dfs, Motile_thresh_diameter)
-        RF, dfs = Add_decision_derail(RF, dfs, Derail_StdAngle=100)
-
-        frames = 60
+        #RF, dfs = Add_decision_derail(RF, dfs, Derail_StdAngle)
         
         RF, dfs = Add_decision_prog(RF, dfs, frames, Progressive)
         RF, dfs = Add_decision_circle(RF, dfs, frames, Circle_SumAngle, Circle_MeanAngle, Circle_StdAngle)
@@ -138,7 +135,7 @@ def doAnalysis(movie_files_path):
         prograte = prog/total
         circlerate = circle/total
 
-        RFhigh = RF[(RF.FL_VCL == frames-1)&(RF.motility == 1)].copy()
+        RFhigh = RF[(RF.FL_VCL == frames-1)&(RF.motile == 1)&(RF.derail == 0)].copy()
 
         meanRFhigh = RFhigh.median()
         No_motil = RFhigh.shape[0]
@@ -178,7 +175,7 @@ def doAnalysis(movie_files_path):
                                             "Circle_Rate"])
         SaveAllResults(tmpdf, ResultFolder)
 
-        writeResultMovFast(ResultFolder, f, moviearray, movieBWarray, dfs, start_frame, 0)
+        writeResultMovFast(MovieFolder, ResultFolder, f, moviearray, movBWarray, dfs, start_frame, 0)
         #writeResultMovFast(MovieFolder, ResultFolder, f, movarray, movBWarray, dfs, start_second, 1)
 
         end_time = time.perf_counter()
@@ -265,22 +262,23 @@ def makemovarray(filepath):
 
     array = []
     BWarray = []
+    print (start_frame)
     for f in tqdm(range(end_frame)):
         ret, img = cap.read()
         if f >= start_frame:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             img = crop(img, height, width, cropheight, cropwidth)
-            BWimg, dark, bright = nichika(img)
+            BWimg = nichika(img)
             array.append(img)
             BWarray.append(BWimg)
     
-    moviearray = np.array(array, dtype='uint8')
-    movieBWarray = np.array(BWarray, dtype='uint8')
+    movarray = np.array(array, dtype='uint8')
+    movBWarray = np.array(BWarray, dtype='uint8')
 
-    return moviearray, movieBWarray
+    return movarray, movBWarray
 
 def makeMask(movieBWarray):
-    MaskThreshold = 250
+    MaskThreshold = 200
     print ('不動精子マスクを作成しています')
     frames = movieBWarray.shape[0]
     #zeroimg = movarray[0]
@@ -288,8 +286,8 @@ def makeMask(movieBWarray):
 
     maskarray = []
 
-    for f in range(frames-avearea):
-        pile = np.zeros((movieBWarray.shape[1],movieBWarray.shape[2]))
+    for f in tqdm(range(frames-avearea)):
+        pile = np.zeros((movieBWarray.shape[2],movieBWarray.shape[3]))
         for i in range(avearea):
             img = movieBWarray[f+i]/avearea
             pile = pile + img
@@ -355,7 +353,7 @@ def nichika(img):
     thresh3 = thresh2 + thresh1
 
     img = thresh3 #.astype(np.uint8)
-    
+
     return img, thresh2, thresh1
 
 
@@ -472,14 +470,13 @@ def findParticleFromMov(movieBWarray, maskarray):
                 if (area > minsize)&(area < maxsize)&(area < minCircleArea * ovalratio):  # 面積が最小以上、最大以下、最小外接円の面積× ovalratio以下の場合
                     cX = int(M['m10']/M['m00'])
                     cY = int(M['m01']/M['m00'])
-                    onmask = mask[cY, cX]
+                    onmask = mask[cX, cY]
                     if onmask > 0:
                         Mov = 0
                     else:
                         Mov = 1
-                    #h = ['index','connect_index','Frame','x','y','area','pre_x','pre_y','Point','Ave_x','Ave_y','pred_x','pred_y','pred_vx','pred_vy'
-                    #    ,'Length','Runlength','Ave_Length','Ave_RunLength','Framelength','Velocity','angle','fix_past','fix_next','motile']
-                    arlist.append([lastidx,0,f,cX,cY,area,cX,cY,0,cX,cY,0,0,0,0,0,0,0,0,0,0,0,0,0,Mov])
+                    #h = ['index','connect_index','Frame','x','y','area','pre_x','pre_y','Point','Ave_x','Ave_y','Length','Runlength','Ave_Length','Ave_RunLength','Framelength','Velocity','angle','fix_past','fix_next','motile']
+                    arlist.append([lastidx,0,f,cX,cY,area,cX,cY,0,0,0,0,0,0,0,0,0,0,0,0,0,Mov])
                     lastidx += 1
 
     df = np.array(arlist, dtype='float16')
@@ -545,11 +542,10 @@ def Kalman(x, px, pvx):
 #@jit
 def makeTracks(df, pnt, h):
     print ('軌跡を連結しています')
-    dfunfixidx = np.where((df[:,h.index('Frame')] == 0)&(df[:,h.index('motile')] == 1))
+    dfunfixidx = np.where((df[:,h.index('Frame')] == 0)&(df[:,h.index('fix_past')] != 1)&(df[:,h.index('motile')] == 1))
     for p in tqdm(dfunfixidx[0]):
         #if np.isnan(df[p,h.index('Point')]): 
         df[p, h.index('Point')] = pnt  # フレーム0の処理
-        df[p, h.index('fix_past')] = 1
 
         x, y = df[p, h.index('x')], df[p, h.index('y')] 
 
@@ -577,13 +573,11 @@ def makeTracks(df, pnt, h):
                     rt = rt + rv
                 
                 # 近接範囲にある粒子一覧を取得
-                nxtnrpsidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')] + t)&(df[:,h.index('fix_next')] != 1)&(df[:,h.index('motile')] == 1))
+                nxtnrpsidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')] + t)&(df[:,h.index('fix_next')] != 1))
                 nxtnrps = df[nxtnrpsidx[0]]
                 # 近接領域に粒子がある場合。粒子と調査点との距離が最も近いものを探す。
                 if nxtnrps.shape[0] > 0:
                     x, y = df[p, h.index('x')], df[p, h.index('y')]
-                    Ave_x, Ave_y = df[p, h.index('Ave_x')], df[p, h.index('Ave_y')]
-                    index = df[p, h.index('index')]
                     length = np.sqrt(pow(nxtnrps[:,h.index('x')] - x,2)+pow(nxtnrps[:,h.index('y')] - y,2))
                     minspan = length.min()
                     if minspan < rt:
@@ -591,45 +585,34 @@ def makeTracks(df, pnt, h):
                         idx2 = idx2S[0]  # 最も近い粒子のインデックス
                         nx = nxtnrps[idx2, h.index('x')]
                         ny = nxtnrps[idx2, h.index('y')]
-                        prenrpsidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')])&(df[:,h.index('fix_past')] == 1)&(df[:,h.index('motile')] == 1))
+                        prenrpsidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')])&(df[:,h.index('fix')] == 1))
                         prenrps = df[prenrpsidx[0]]
                         if prenrps.shape[0] > 0:
                             prespans = np.sqrt(pow(prenrps[:,h.index('x')] - nx[0],2)+pow(prenrps[:,h.index('y')] - ny[0],2))
                             preminspan = prespans.min()
                             if minspan == preminspan: # 逆方向にも最も近い場合だけ
-                                nxtidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')] + t)&(df[:,h.index('fix_past')] != 1)&(df[:,h.index('x')] == nx)&(df[:,h.index('y')] == ny))
+                                nxtidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')] + t)&(df[:,h.index('fix')] != 1)&(df[:,h.index('x')] == nx)&(df[:,h.index('y')] == ny))
                                 nxtidx = np.array(nxtidx[0])
                                 if nxtidx.shape[0] >0:
                                     Leng = minspan * microscale
                                     RL = df[p,h.index('Runlength')] + Leng
                                     FL = f
                                     df[nxtidx[0], h.index('Point')] = df[p, h.index('Point')]
-                                    df[nxtidx[0], h.index('connect_index')] = index
-                                    df[nxtidx[0], h.index('pre_x')] = x
-                                    df[nxtidx[0], h.index('pre_y')] = y
                                     df[nxtidx[0], h.index('Length')] = Leng 
                                     df[nxtidx[0], h.index('Runlength')] = RL
                                     df[nxtidx[0], h.index('Framelength')] = FL # フレーム長を加算
                                     df[nxtidx[0], h.index('Velocity')] = RL/FL # 速度を記録
                                     #df[nxtidx[0], h.index('Mov')] = 1 
                                     df[nxtidx[0], h.index('fix_past')] = 1
-                                    
+                                    p = nxtidx[0]
                                     if f + 1 < avearea:
                                         avea = f + 1
                                     else:
                                         avea = avearea
                                     neartrackidx = np.where((df[:,h.index('Point')] == pnt)&(df[:,h.index('Frame')] <= f)&(df[:,h.index('Frame')] >= f+1-avea))
                                     neartrack = df[neartrackidx[0]]
-                                    n_Ave_x = np.mean(neartrack[:,h.index('x')])
-                                    n_Ave_y = np.mean(neartrack[:,h.index('y')])
-                                    df[nxtidx[0], h.index('Ave_x')] = n_Ave_x
-                                    df[nxtidx[0], h.index('Ave_y')] = n_Ave_y
-                                    Ave_Length = np.sqrt(pow(Ave_x - n_Ave_x,2)+pow(Ave_y- n_Ave_y,2))
-                                    df[nxtidx[0], h.index('Ave_Length')] = Ave_Length
-                                    Ave_RunLength = df[p,h.index('Ave_RunLength')] + Ave_Length
-                                    df[nxtidx[0], h.index('Ave_RunLength')] = Ave_RunLength
-                                    p = nxtidx[0]
-
+                                    df[nxtidx[0], h.index('Ave_x')] =  np.mean(neartrack[:,h.index('x')]) 
+                                    df[nxtidx[0], h.index('Ave_y')] =  np.mean(neartrack[:,h.index('y')])
 
                                     if f%3 == 0:
                                         # 角度検出
@@ -677,22 +660,14 @@ def makeTracks(df, pnt, h):
         else:
             vapfinish = avearea
         lf = np.max(pointdf[:,h.index('Frame')])
-        Ave_x = n_Ave_x
-        Ave_y = n_Ave_y
         for v in range(vapfinish):
             frame = lf + 1 + v
             avedfidx = np.where((pointdf[:,h.index('Frame')] <= lf)&(pointdf[:,h.index('Frame')] >= lf - vapfinish + 1 + v))
             avedf = pointdf[avedfidx]
-            n_Ave_x, n_Ave_y = np.mean(avedf[:,h.index('x')]), np.mean(avedf[:,h.index('y')])
-            n_Ave_Length = np.sqrt(pow(Ave_x - n_Ave_x,2)+pow(Ave_y- n_Ave_y,2))
-            n_Ave_RunLength = Ave_RunLength + n_Ave_Length
-            #h = ['index','connect_index','Frame','x','y','area','pre_x','pre_y','Point','Ave_x','Ave_y','pred_x','pred_y','pred_vx','pred_vy'
-            #    ,'Length','Runlength','Ave_Length','Ave_RunLength','Framelength','Velocity','angle','fix_past','fix_next','motile']
-            tdf = np.array([[0,0,frame,0,0,0,0,0,pnt,Ave_x,Ave_y,0,0,0,0,0,0,n_Ave_Length,n_Ave_RunLength,0,0,0,0,0,1]])
+            Ave_x, Ave_y = np.mean(avedf[:,h.index('x')]), np.mean(avedf[:,h.index('y')]) 
+            tdf = np.array([[frame,0,0,0,1,pnt,Ave_x,Ave_y,0,0,0,0,0,1]])
             df = np.concatenate((df, tdf), axis = 0)
-            Ave_x = n_Ave_x
-            Ave_y = n_Ave_y
-            Ave_RunLength = n_Ave_RunLength
+
         pnt = pnt + 1
 
     return df, pnt
@@ -700,12 +675,10 @@ def makeTracks(df, pnt, h):
 
 
 def makezarray(FrameRate):
-    #h = ['index','connect_index','Frame','x','y','area','pre_x','pre_y','Point','Ave_x','Ave_y','pred_x','pred_y','pred_vx','pred_vy'
-    #    ,'Length','Runlength','Ave_Length','Ave_RunLength','Framelength','Velocity','angle','fix_past','fix_next','motile']
-    df = np.array([[0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0]])
+    df = np.array([[1,0,0,0,0,0,0,0,0,0,1,0,0,1]])
     for f in range(FrameRate):
             if f > 1:
-                tdf = np.array([[0,0,f,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,f,0,0,0,0,0]])
+                tdf = np.array([[f,0,0,0,0,0,0,0,0,0,f,0,0,1]])
                 df = np.concatenate((df, tdf), axis = 0)
     
     return df
@@ -723,7 +696,7 @@ def fixImInZero(df, pnt, FrameRate, zarray, h):
         df[i,h.index('Runlength')] = 0 
         df[i,h.index('Framelength')] = 0
         df[i,h.index('Velocity')] = 0
-        df[i,h.index('fix_past')] = 1
+        df[i,h.index('fix')] = 1
         df[i,h.index('Ave_x')] = x
         df[i,h.index('Ave_y')] = y
         df[i,h.index('angle')] = 0
@@ -751,44 +724,23 @@ def ARtoDF(df, h):
  
 
 #VCL算出
-def makeVCL_VAP(df, h):
+def makeVCL(df, h):
     dfidx = np.where((df[:,h.index('Point')] == df[:,h.index('Point')])&(df[:,h.index('area')] > 0))
     df = df[dfidx[0]]
     maxpoint = int(df[:,h.index('Point')].max()) + 1
     VCLlist = []
-    print ('VCL,VAPを算出しています。')
+    print ('VCLを算出しています。')
     for i in tqdm(range(maxpoint)):
         pointdfidx = np.where(df[:,h.index('Point')] == i)
         pointdf = df[pointdfidx[0]]
-        maxFrame = pointdf[:,h.index('Framelength')].max()
-        idx = np.where(pointdf[:,h.index('Framelength')] == maxFrame)
-        RunLength = pointdf[idx[0][0],h.index('Runlength')]
-        Ave_maxFrame = pointdf[:,h.index('Frame')].max()
-        Ave_idx = np.where(pointdf[:,h.index('Frame')] == Ave_maxFrame)
-        Ave_RunLength = pointdf[Ave_idx[0][0],h.index('Ave_RunLength')]        
-        m = pointdf[0,h.index('motile')]
-        VCLlist.append([i,m,maxFrame,RunLength,Ave_maxFrame,Ave_RunLength])
-    VCLframe = np.array(VCLlist, dtype='float')
-    VCLframe = pd.DataFrame(VCLframe, columns=["Point", "motile", "FL_VCL", "VCL", "FL_VAP", "VAP"])
+        maxFrame = pointdf[:,h.index('Frame')].max()
+        idx = np.where(pointdf[:,h.index('Frame')] == maxFrame)
+        length = pointdf[idx,h.index('Runlength')]
+        m = pointdf[0,h.index('Mov')]
+        VCLlist.append([i,m,maxFrame,length])
+        VCLframe = np.array(VCLlist, dtype='float')
+        VCLframe = pd.DataFrame(VCLframe, columns=["Point", "Mov", "FL_VCL", "VCL"])
     return VCLframe
-
-#def makeVCL(df, h):
-#    dfidx = np.where((df[:,h.index('Point')] == df[:,h.index('Point')])&(df[:,h.index('area')] > 0))
-#    df = df[dfidx[0]]
-#    maxpoint = int(df[:,h.index('Point')].max()) + 1
-#    VCLlist = []
-#    print ('VCLを算出しています。')
-#    for i in tqdm(range(maxpoint)):
-#        pointdfidx = np.where(df[:,h.index('Point')] == i)
-#        pointdf = df[pointdfidx[0]]
-#        maxFrame = pointdf[:,h.index('Frame')].max()
-#        idx = np.where(pointdf[:,h.index('Frame')] == maxFrame)
-#        length = pointdf[idx[0][0],h.index('Runlength')]
-#        m = pointdf[0,h.index('motile')]
-#        VCLlist.append([i,m,maxFrame,length])
-#    VCLframe = np.array(VCLlist, dtype='float')
-#    VCLframe = pd.DataFrame(VCLframe, columns=["Point", "motile", "FL_VCL", "VCL"])
-#    return VCLframe
 
 #VAP.VSL算出
 def makeVAP(df, microscale, h):
@@ -830,7 +782,7 @@ def makeVSL(df, microscale, h):
         pointdf = df[pointdfidx[0]]
         maxFrame = pointdf[:,h.index('Frame')].max() 
         idx = np.where(pointdf[:,h.index('Frame')] == maxFrame) 
-        x,y = pointdf[idx[0][0],h.index('x')], pointdf[idx[0][0],h.index('y')]
+        x,y = pointdf[idx[0],h.index('x')], pointdf[idx[0],h.index('y')]
         x0,y0 = pointdf[0,h.index('x')], pointdf[0,h.index('y')]
         VSL = np.sqrt(pow(x-x0,2)+pow(y-y0,2)) * microscale
         VSLlist.append([i,VSL])
@@ -972,11 +924,11 @@ def makeANG(df, h):
 
 def Add_decision_simple(df, dfs, thresh_diameter):
     
-    df['motility'] = pd.Series()
-    df.loc[(df['diameter'] > thresh_diameter)&(df.motility != 0),'motility'] = 1
-    df.loc[~(df['diameter'] > thresh_diameter)&(df.motility != 0),'motility'] = 0
+    df['motile'] = pd.Series()
+    df.loc[(df['diameter'] > thresh_diameter)&(df.motile != 0),'motile'] = 1
+    df.loc[~(df['diameter'] > thresh_diameter)&(df.motile != 0),'motile'] = 0
 
-    dfs = pd.merge(dfs, df[['Point', 'motility']], on='Point', how = 'left')
+    dfs = pd.merge(dfs, df[['Point', 'motile']], on='Point', how = 'left')
     
     return df, dfs
 
@@ -1023,7 +975,7 @@ def SaveAllResults(tmpdf, ResultFolder):
 
 
 # 認識結果動画の書き出し
-def writeResultMovFast(ResultFolder, filename, movarray, movBWarray, AllPoints, start_second, BW):
+def writeResultMovFast(MovieFolder, ResultFolder, filename, movarray, movBWarray, AllPoints, start_second, BW):
     print ('トラックを動画に書き出しています。')
     df = AllPoints
 
@@ -1056,13 +1008,12 @@ def writeResultMovFast(ResultFolder, filename, movarray, movBWarray, AllPoints, 
             plistdf = df[(df.Point == df.Point)&(df.Frame == i)&(df.area > 0)].reset_index(drop=True)
             fsdf = df[(df.Point == df.Point)&(df.Frame <= i)&(df.area > 0)].reset_index(drop=True)
             for p in plistdf['Point']:
-                if p > 0:
-                    pfsdf = fsdf[fsdf.Point == p].reset_index(drop=True)
-                    mi = max(pfsdf.index)
-                    if mi != 0:
-                        draw.line((int(pfsdf['x'][mi-1]),int(pfsdf['y'][mi-1]),
-                                    int(pfsdf['x'][mi]),int(pfsdf['y'][mi])),
-                                        fill=(255,204,0), width=1)
+                pfsdf = fsdf[fsdf.Point == p].reset_index(drop=True)
+                mi = max(pfsdf.index)
+                if mi != 0:
+                    draw.line((int(pfsdf['x'][mi-1]),int(pfsdf['y'][mi-1]),
+                                int(pfsdf['x'][mi]),int(pfsdf['y'][mi])),
+                                    fill=(255,204,0), width=1)
             mask = OL.split()[3]
             PILframe.paste(OL, None, mask)
             frame = np.asarray(PILframe)

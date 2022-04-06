@@ -479,7 +479,7 @@ def findParticleFromMov(movieBWarray, maskarray):
                         Mov = 1
                     #h = ['index','connect_index','Frame','x','y','area','pre_x','pre_y','Point','Ave_x','Ave_y','pred_x','pred_y','pred_vx','pred_vy'
                     #    ,'Length','Runlength','Ave_Length','Ave_RunLength','Framelength','Velocity','angle','fix_past','fix_next','motile']
-                    arlist.append([lastidx,0,f,cX,cY,area,cX,cY,0,cX,cY,0,0,0,0,0,0,0,0,0,0,0,0,0,Mov])
+                    arlist.append([lastidx,0,f,cX,cY,area,cX,cY,0,cX,cY,cX,cY,0,0,0,0,0,0,0,0,0,0,0,Mov])
                     lastidx += 1
 
     df = np.array(arlist, dtype='float16')
@@ -528,12 +528,13 @@ def initKalman():
 def Kalman(x, px, pvx):
     initKalman()
     measurement = np.zeros((1),dtype=np.float32)
-    measurement[0] = x
-    pred = np.array([px, pvx])
+    measurement[0] = x.astype(np.float32)
+    pred = np.array([px.astype(np.float32), pvx.astype(np.float32)])
     kalman.statePre = pred
     kalman.statePost = pred
     estim = kalman.correct(measurement)
     pred = kalman.predict()
+    #print (x, px, pvx, pred)
     px = pred[0]
     pvx = pred[1]
     return px, pvx
@@ -581,7 +582,10 @@ def makeTracks(df, pnt, h):
                 nxtnrps = df[nxtnrpsidx[0]]
                 # 近接領域に粒子がある場合。粒子と調査点との距離が最も近いものを探す。
                 if nxtnrps.shape[0] > 0:
-                    x, y = df[p, h.index('x')], df[p, h.index('y')]
+                    #x, y = df[p, h.index('x')], df[p, h.index('y')]
+                    # カルマン予測実装
+                    x, y = df[p, h.index('pred_x')], df[p, h.index('pred_y')]
+                    #
                     Ave_x, Ave_y = df[p, h.index('Ave_x')], df[p, h.index('Ave_y')]
                     index = df[p, h.index('index')]
                     length = np.sqrt(pow(nxtnrps[:,h.index('x')] - x,2)+pow(nxtnrps[:,h.index('y')] - y,2))
@@ -589,24 +593,28 @@ def makeTracks(df, pnt, h):
                     if minspan < rt:
                         idx2S = np.where(length == minspan)
                         idx2 = idx2S[0]  # 最も近い粒子のインデックス
-                        nx = nxtnrps[idx2, h.index('x')]
-                        ny = nxtnrps[idx2, h.index('y')]
+                        nx = nxtnrps[idx2, h.index('x')][0]
+                        ny = nxtnrps[idx2, h.index('y')][0]
                         prenrpsidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')])&(df[:,h.index('fix_past')] == 1)&(df[:,h.index('motile')] == 1))
                         prenrps = df[prenrpsidx[0]]
                         if prenrps.shape[0] > 0:
-                            prespans = np.sqrt(pow(prenrps[:,h.index('x')] - nx[0],2)+pow(prenrps[:,h.index('y')] - ny[0],2))
+                            #prespans = np.sqrt(pow(prenrps[:,h.index('x')] - nx[0],2)+pow(prenrps[:,h.index('y')] - ny[0],2))
+                            # カルマン予測実装
+                            prespans = np.sqrt(pow(prenrps[:,h.index('pred_x')] - nx,2)+pow(prenrps[:,h.index('pred_y')] - ny,2))
+                            #
                             preminspan = prespans.min()
                             if minspan == preminspan: # 逆方向にも最も近い場合だけ
                                 nxtidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')] + t)&(df[:,h.index('fix_past')] != 1)&(df[:,h.index('x')] == nx)&(df[:,h.index('y')] == ny))
                                 nxtidx = np.array(nxtidx[0])
                                 if nxtidx.shape[0] >0:
-                                    Leng = minspan * microscale
+                                    tx, ty = df[p, h.index('x')], df[p, h.index('y')]
+                                    Leng = microscale * np.sqrt(pow(tx - nx,2)+pow(ty - ny,2))
                                     RL = df[p,h.index('Runlength')] + Leng
                                     FL = f
                                     df[nxtidx[0], h.index('Point')] = df[p, h.index('Point')]
                                     df[nxtidx[0], h.index('connect_index')] = index
-                                    df[nxtidx[0], h.index('pre_x')] = x
-                                    df[nxtidx[0], h.index('pre_y')] = y
+                                    df[nxtidx[0], h.index('pre_x')] = tx
+                                    df[nxtidx[0], h.index('pre_y')] = ty
                                     df[nxtidx[0], h.index('Length')] = Leng 
                                     df[nxtidx[0], h.index('Runlength')] = RL
                                     df[nxtidx[0], h.index('Framelength')] = FL # フレーム長を加算
@@ -628,8 +636,18 @@ def makeTracks(df, pnt, h):
                                     df[nxtidx[0], h.index('Ave_Length')] = Ave_Length
                                     Ave_RunLength = df[p,h.index('Ave_RunLength')] + Ave_Length
                                     df[nxtidx[0], h.index('Ave_RunLength')] = Ave_RunLength
-                                    p = nxtidx[0]
+                                    
+                                    # カルマン予測実装
+                                    pre_px, pre_py, pre_pvx, pre_pvy = df[p, h.index('pred_x')], df[p, h.index('pred_y')], df[p, h.index('pred_vx')], df[p, h.index('pred_vy')]
+                                    px, pvx = Kalman(nx, pre_px, pre_pvx)
+                                    py, pvy = Kalman(ny, pre_py, pre_pvy)
+                                    df[nxtidx[0], h.index('pred_x')] = px
+                                    df[nxtidx[0], h.index('pred_y')] = py
+                                    df[nxtidx[0], h.index('pred_vx')] = pvx
+                                    df[nxtidx[0], h.index('pred_vy')] = pvy
+                                    #
 
+                                    p = nxtidx[0]
 
                                     if f%3 == 0:
                                         # 角度検出

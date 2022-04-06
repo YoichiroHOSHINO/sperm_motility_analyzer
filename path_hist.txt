@@ -1,0 +1,3 @@
+D:\onedrive\GitHub\sperm_motility_analyzer_v2\MOVIES
+D:\onedrive\GitHub\sperm_motility_analyzer_v2\RESULTS
+./config_GUI.csv
