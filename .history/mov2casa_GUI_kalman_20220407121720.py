@@ -760,7 +760,7 @@ def makeTracks(df, pnt, h):
                                     n_Ave_y = np.mean(neartrack[:,h.index('y')])
                                     df[nxtidx[0], h.index('Ave_x')] = n_Ave_x
                                     df[nxtidx[0], h.index('Ave_y')] = n_Ave_y
-                                    Ave_Length = microscale * np.sqrt(pow(Ave_x - n_Ave_x,2)+pow(Ave_y- n_Ave_y,2))
+                                    Ave_Length = np.sqrt(pow(Ave_x - n_Ave_x,2)+pow(Ave_y- n_Ave_y,2))
                                     df[nxtidx[0], h.index('Ave_Length')] = Ave_Length
                                     Ave_RunLength = df[p,h.index('Ave_RunLength')] + Ave_Length
                                     df[nxtidx[0], h.index('Ave_RunLength')] = Ave_RunLength

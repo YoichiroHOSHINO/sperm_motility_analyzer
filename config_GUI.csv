@@ -8,8 +8,8 @@ end_frame,80
 minsize,30
 maxsize,500
 ovalratio,0.6
-mobsearchrange,50
-maxjumpframes,3
+mobsearchrange,30
+maxjumpframes,1
 microscale,0.47
 Threshtype,1
 AThreshBS,19

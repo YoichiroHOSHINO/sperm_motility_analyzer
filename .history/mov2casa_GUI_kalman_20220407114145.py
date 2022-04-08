@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
 
+# mov2casa.py 2019.4.4
+# mov2casa.py 2019.4.7 OpenCV3 から 4 におけるfindContours関数返り値の変更への対応。
+#                     .ix から .loc への変更。
+# mov2casa.py 2019.4.8 文字コード宣言の追加
+# mov2casa.py 2019.5.31 二値化明部認識部分の改良。configパラメーター追加     
+# mov2casa.py 2019.6.19 二値化方法選択機能追加。configパラメーター追加
+# mov2casa.py 2019.7.04 二値化白黒反転の分岐処理を追加            
+
+#from numba import jit
 import pandas as pd
 import numpy as np
 import os
@@ -62,7 +71,8 @@ def doAnalysis(movie_files_path):
 
         pandasdf = pd.DataFrame(df, columns=h)
         dfs = pandasdf.sort_values(by=['Point','Frame'], ascending=True)
-                
+        
+        
         dfck = np.where(df[:,h.index('fix_past')] > 0)
         if dfck[0].shape[0] > 0:
 
@@ -302,6 +312,7 @@ def nichika(img):
     
     return img, thresh2, thresh1
 
+
 def makesaveheader(heads):
     hdr = ""
     for h in heads:
@@ -369,6 +380,8 @@ def SetArg(cf):
     Circle_MeanAngle = int(cf.loc[cf[0] == "Circle_MeanAngle",1].values[0])
     Circle_StdAngle = int(cf.loc[cf[0] == "Circle_StdAngle",1].values[0])
     avearea = int(FrameRate/6)
+
+
 
 # 動画ファイルから粒子抽出
 
@@ -721,100 +734,98 @@ def makeTracks(df, pnt, h):
                                 idx2 = idx2S[0]  # 最も近い粒子のインデックス
                                 nx = nxtnrps[idx2, h.index('x')][0]
                                 ny = nxtnrps[idx2, h.index('y')][0]
-                                ## 逆方向検索
-                                #prenrpsidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')])&(df[:,h.index('fix_past')] == 1)&(df[:,h.index('motile')] == motile))
-                                #prenrps = df[prenrpsidx[0]]
-                                #if prenrps.shape[0] > 0:
-                                #    #prespans = np.sqrt(pow(prenrps[:,h.index('x')] - nx[0],2)+pow(prenrps[:,h.index('y')] - ny[0],2))
-                                #    # カルマン予測実装
-                                #    prespans = np.sqrt(pow(prenrps[:,h.index('pred_x')] - nx,2)+pow(prenrps[:,h.index('pred_y')] - ny,2))
-                                #    #
-                                #    preminspan = prespans.min()
-                                #    if minspan == preminspan: # 逆方向にも最も近い場合だけ
-                                ###########
-                                nxtidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')] + t)&(df[:,h.index('fix_past')] != 1)&(df[:,h.index('x')] == nx)&(df[:,h.index('y')] == ny))
-                                nxtidx = np.array(nxtidx[0])
-                                if nxtidx.shape[0] >0:
-                                    tx, ty = df[p, h.index('x')], df[p, h.index('y')]
-                                    Leng = microscale * np.sqrt(pow(tx - nx,2)+pow(ty - ny,2))
-                                    RL = df[p,h.index('Runlength')] + Leng
-                                    FL = f
-                                    df[nxtidx[0], h.index('Point')] = df[p, h.index('Point')]
-                                    df[nxtidx[0], h.index('connect_index')] = index
-                                    df[nxtidx[0], h.index('pre_x')] = tx
-                                    df[nxtidx[0], h.index('pre_y')] = ty
-                                    df[nxtidx[0], h.index('Length')] = Leng 
-                                    df[nxtidx[0], h.index('Runlength')] = RL
-                                    df[nxtidx[0], h.index('Framelength')] = FL # フレーム長を加算
-                                    df[nxtidx[0], h.index('Velocity')] = RL/FL # 速度を記録
-                                    #df[nxtidx[0], h.index('Mov')] = 1 
-                                    df[nxtidx[0], h.index('fix_past')] = 1
-                                    
-                                    if f + 1 < avearea:
-                                        avea = f + 1
-                                    else:
-                                        avea = avearea
-                                    neartrackidx = np.where((df[:,h.index('Point')] == pnt)&(df[:,h.index('Frame')] <= f)&(df[:,h.index('Frame')] >= f+1-avea))
-                                    neartrack = df[neartrackidx[0]]
-                                    n_Ave_x = np.mean(neartrack[:,h.index('x')])
-                                    n_Ave_y = np.mean(neartrack[:,h.index('y')])
-                                    df[nxtidx[0], h.index('Ave_x')] = n_Ave_x
-                                    df[nxtidx[0], h.index('Ave_y')] = n_Ave_y
-                                    Ave_Length = microscale * np.sqrt(pow(Ave_x - n_Ave_x,2)+pow(Ave_y- n_Ave_y,2))
-                                    df[nxtidx[0], h.index('Ave_Length')] = Ave_Length
-                                    Ave_RunLength = df[p,h.index('Ave_RunLength')] + Ave_Length
-                                    df[nxtidx[0], h.index('Ave_RunLength')] = Ave_RunLength
-                                    
+                                prenrpsidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')])&(df[:,h.index('fix_past')] == 1)&(df[:,h.index('motile')] == motile))
+                                prenrps = df[prenrpsidx[0]]
+                                if prenrps.shape[0] > 0:
+                                    #prespans = np.sqrt(pow(prenrps[:,h.index('x')] - nx[0],2)+pow(prenrps[:,h.index('y')] - ny[0],2))
                                     # カルマン予測実装
-                                    pre_px, pre_py, pre_pvx, pre_pvy = df[p, h.index('pred_x')], df[p, h.index('pred_y')], df[p, h.index('pred_vx')], df[p, h.index('pred_vy')]
-                                    px, pvx = Kalman(nx, pre_px, pre_pvx)
-                                    py, pvy = Kalman(ny, pre_py, pre_pvy)
-                                    df[nxtidx[0], h.index('pred_x')] = px
-                                    df[nxtidx[0], h.index('pred_y')] = py
-                                    df[nxtidx[0], h.index('pred_vx')] = pvx
-                                    df[nxtidx[0], h.index('pred_vy')] = pvy
+                                    prespans = np.sqrt(pow(prenrps[:,h.index('pred_x')] - nx,2)+pow(prenrps[:,h.index('pred_y')] - ny,2))
                                     #
+                                    preminspan = prespans.min()
+                                    if minspan == preminspan: # 逆方向にも最も近い場合だけ
+                                        nxtidx = np.where((df[:,h.index('Frame')] == df[p,h.index('Frame')] + t)&(df[:,h.index('fix_past')] != 1)&(df[:,h.index('x')] == nx)&(df[:,h.index('y')] == ny))
+                                        nxtidx = np.array(nxtidx[0])
+                                        if nxtidx.shape[0] >0:
+                                            tx, ty = df[p, h.index('x')], df[p, h.index('y')]
+                                            Leng = microscale * np.sqrt(pow(tx - nx,2)+pow(ty - ny,2))
+                                            RL = df[p,h.index('Runlength')] + Leng
+                                            FL = f
+                                            df[nxtidx[0], h.index('Point')] = df[p, h.index('Point')]
+                                            df[nxtidx[0], h.index('connect_index')] = index
+                                            df[nxtidx[0], h.index('pre_x')] = tx
+                                            df[nxtidx[0], h.index('pre_y')] = ty
+                                            df[nxtidx[0], h.index('Length')] = Leng 
+                                            df[nxtidx[0], h.index('Runlength')] = RL
+                                            df[nxtidx[0], h.index('Framelength')] = FL # フレーム長を加算
+                                            df[nxtidx[0], h.index('Velocity')] = RL/FL # 速度を記録
+                                            #df[nxtidx[0], h.index('Mov')] = 1 
+                                            df[nxtidx[0], h.index('fix_past')] = 1
+                                            
+                                            if f + 1 < avearea:
+                                                avea = f + 1
+                                            else:
+                                                avea = avearea
+                                            neartrackidx = np.where((df[:,h.index('Point')] == pnt)&(df[:,h.index('Frame')] <= f)&(df[:,h.index('Frame')] >= f+1-avea))
+                                            neartrack = df[neartrackidx[0]]
+                                            n_Ave_x = np.mean(neartrack[:,h.index('x')])
+                                            n_Ave_y = np.mean(neartrack[:,h.index('y')])
+                                            df[nxtidx[0], h.index('Ave_x')] = n_Ave_x
+                                            df[nxtidx[0], h.index('Ave_y')] = n_Ave_y
+                                            Ave_Length = np.sqrt(pow(Ave_x - n_Ave_x,2)+pow(Ave_y- n_Ave_y,2))
+                                            df[nxtidx[0], h.index('Ave_Length')] = Ave_Length
+                                            Ave_RunLength = df[p,h.index('Ave_RunLength')] + Ave_Length
+                                            df[nxtidx[0], h.index('Ave_RunLength')] = Ave_RunLength
+                                            
+                                            # カルマン予測実装
+                                            pre_px, pre_py, pre_pvx, pre_pvy = df[p, h.index('pred_x')], df[p, h.index('pred_y')], df[p, h.index('pred_vx')], df[p, h.index('pred_vy')]
+                                            px, pvx = Kalman(nx, pre_px, pre_pvx)
+                                            py, pvy = Kalman(ny, pre_py, pre_pvy)
+                                            df[nxtidx[0], h.index('pred_x')] = px
+                                            df[nxtidx[0], h.index('pred_y')] = py
+                                            df[nxtidx[0], h.index('pred_vx')] = pvx
+                                            df[nxtidx[0], h.index('pred_vy')] = pvy
+                                            #
 
-                                    p = nxtidx[0]
+                                            p = nxtidx[0]
 
-                                    if f%3 == 0:
-                                        # 角度検出
-                                        del xys[:2]
-                                        xys.append(np.mean(neartrack[:,h.index('x')]))
-                                        xys.append(np.mean(neartrack[:,h.index('y')]))
-                                        if xys[0] > 0:
-                                            ax = xys[0] - xys[2]
-                                            ay = xys[1] - xys[3]
-                                            bx = xys[2] - xys[4]
-                                            by = xys[3] - xys[5]
-                                            if ax != 0 and ay != 0:
-                                                if bx != 0 and by != 0:
-                                                    cosangle = (ax * bx + ay * by)/(np.sqrt(pow(ax,2) + pow(ay,2))*np.sqrt(pow(bx,2) + pow(by,2)))
-                                                    dr = (xys[2] - xys[0])*(xys[5] - xys[1]) - (xys[3] - xys[1])*(xys[4] - xys[0])
-                                                    if dr < 0:
-                                                        dr = -1
+                                            if f%3 == 0:
+                                                # 角度検出
+                                                del xys[:2]
+                                                xys.append(np.mean(neartrack[:,h.index('x')]))
+                                                xys.append(np.mean(neartrack[:,h.index('y')]))
+                                                if xys[0] > 0:
+                                                    ax = xys[0] - xys[2]
+                                                    ay = xys[1] - xys[3]
+                                                    bx = xys[2] - xys[4]
+                                                    by = xys[3] - xys[5]
+                                                    if ax != 0 and ay != 0:
+                                                        if bx != 0 and by != 0:
+                                                            cosangle = (ax * bx + ay * by)/(np.sqrt(pow(ax,2) + pow(ay,2))*np.sqrt(pow(bx,2) + pow(by,2)))
+                                                            dr = (xys[2] - xys[0])*(xys[5] - xys[1]) - (xys[3] - xys[1])*(xys[4] - xys[0])
+                                                            if dr < 0:
+                                                                dr = -1
+                                                            else:
+                                                                dr = 1
+                                                            if cosangle > 1 :
+                                                                cosangle = 1
+                                                            if cosangle < -1 :
+                                                                cosangle = -1
+                                                            angle = math.degrees(math.acos(cosangle))*dr
+                                                        else:
+                                                            angle = 0
                                                     else:
-                                                        dr = 1
-                                                    if cosangle > 1 :
-                                                        cosangle = 1
-                                                    if cosangle < -1 :
-                                                        cosangle = -1
-                                                    angle = math.degrees(math.acos(cosangle))*dr
+                                                        angle = 0
                                                 else:
                                                     angle = 0
                                             else:
                                                 angle = 0
-                                        else:
-                                            angle = 0
-                                    else:
-                                        angle = 0
-                                        
-                                    df[nxtidx[0], h.index('angle')] = angle
+                                                
+                                            df[nxtidx[0], h.index('angle')] = angle
 
-                                    f=f+1
+                                            f=f+1
 
-                                    break
-                        
+                                            break
+                                
                         f = f+1
                 pointdfidx = np.where(df[:,h.index('Point')] == pnt) 
                 pointdf = df[pointdfidx]
@@ -964,6 +975,8 @@ def makeVSL(df, microscale, h):
     VSLframe = np.array(VSLlist, dtype='float')
     VSLframe = pd.DataFrame(VSLframe, columns=["Point", "VSL"])
     return VSLframe
+
+
 
 #BCF算出
 def makeBCF(df, h):
@@ -1134,6 +1147,7 @@ def Add_decision_derail(df,dfs,Derail_StdAngle):
     dfs = pd.merge(dfs, df[['Point', 'derail']], on='Point', how = 'left')
 
     return df, dfs
+
            
 def SaveAllResults(tmpdf, ResultFolder):
     if os.path.exists(ResultFolder + "AllResults.csv"):
@@ -1142,6 +1156,7 @@ def SaveAllResults(tmpdf, ResultFolder):
         ALLRF.to_csv(ResultFolder + "AllResults.csv", index = False)
     else:
         tmpdf.to_csv(ResultFolder + "AllResults.csv", index = False)
+
 
 # 認識結果動画の書き出し
 def writeResultMovFast(ResultFolder, filename, movarray, movBWarray, AllPoints, start_second, BW, h):
@@ -1229,6 +1244,8 @@ def writeResultMovFast(ResultFolder, filename, movarray, movBWarray, AllPoints, 
             cv2.imwrite(ResultFolder + filename +  "_sec" + str(start_second)  + "_lastframe.jpg", frame)
         out.write(frame)
     
+    
+
     # ポイント別軌跡保存 pandas df を numpy arrayに変換する必要がある。
     font = ImageFont.truetype("arial.ttf", size=14)
     if not os.path.exists(ResultFolder + filename_with_arg + '_trackimgs'):
