@@ -1,0 +1,30 @@
+﻿Arg,Val,Exp
+TestMode,1,1:テストモード
+MovieFolder,D:\Documents\CASA_results\220411_new_nichika_test\MOVIES\,解析動画フォルダ
+ResultFolder,D:\Documents\CASA_results\220411_new_nichika_test\RESULTS\,結果出力先フォルダ
+cropheight,0,解析範囲の高さpixel（0：動画サイズ全体）
+cropwidth,0,解析範囲の幅pixel（0：動画サイズ全体）
+start_second,1,動画の解析開始秒数
+FrameRate,60,フレームレート
+minsize,50,認識する最小サイズ（pixel）
+maxsize,1000,認識する最大サイズ（pixel）
+maxjumpframes,3,何フレーム先まで探索するか
+mobsearchrange,10,運動精子の次フレーム探索範囲
+ovalratio,0.6,頭部楕円形状認識（最小外接円×値 以下の面積を頭部と認識）
+microscale,0.47,× pixel数が実寸（μm）
+Threshtype,1,0:大津の二値化　1:適応的二値化　2~255:数値を閾値とした二値化
+AThreshBS,17,適応的二値化の調査ブロックサイズ
+AThreshC,5,適応的二値化の閾値
+Bright_thresh,200,明部認識の閾値
+bright_erosion_iter,0,二値化収縮処理の回数
+bright_dilate_iter,0,二値化膨張処理の回数
+dark_erosion_iter,0,二値化収縮処理の回数
+dark_dilate_iter,0,二値化膨張処理の回数
+MaskThreshold,250,不動精子マスクの閾値
+Motile_thresh_diameter,20,精子の軌跡中の最も遠い点間の距離がこの値以下だった場合、不動精子と認定する。
+Progressive,60,VAPがこの値（μm）以上の時に、前進性の高い精子と判定する。
+Circle_SumAngle,90,SumAngleがこの値以上であり、
+Circle_MeanAngle,10,MeanAngleがこの値以上であり、
+Circle_StdAngle,100,StdAngleがこの値以下であった場合、円運動をしていると判定する。
+Derail_StdAngle,1000,StdAngleがこの値以上だった場合、軌跡がずれた（脱線）と判定する。
+

@@ -203,7 +203,7 @@ def makemovBWarray(BWarray, mask): #(movarray, mask, dark_erosion_iter, dark_dil
     return movBWarray
 
 # 画像二値化処理
-def nichika(img, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dark_dilate_iter, Threshtype, AThreshBS, AThreshC, Bright_thresh):
+def nichika_original(img, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dark_dilate_iter, Threshtype, AThreshBS, AThreshC, Bright_thresh):
     # 明部検出
     bright_erosion_iter = 0
     bright_dilate_iter = 1
@@ -241,6 +241,45 @@ def nichika(img, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dar
     img = thresh3 #.astype(np.uint8)
 
     return img, thresh2, thresh1
+
+# 画像二値化処理
+def nichika(img_org, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dark_dilate_iter, Threshtype, AThreshBS, AThreshC, Bright_thresh):
+
+    kernel = np.array([[1,1,1],[1,1,1],[1,1,1]], np.uint8)
+    
+    if Threshtype == 1:
+        thresh_dark = cv2.adaptiveThreshold(img_org, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,AThreshBS,AThreshC)  # 暗部検出：通常の適応的二値化
+    elif Threshtype == 0:
+        ret, thresh_dark = cv2.threshold(img_org,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    else:
+        ret, thresh_dark = cv2.threshold(img_org,Threshtype,255,cv2.THRESH_BINARY)
+
+    thresh_dark = cv2.erode(thresh_dark, kernel, iterations = dark_erosion_iter)
+    thresh_dark = cv2.dilate(thresh_dark, kernel, iterations = dark_dilate_iter)
+
+    thresh_dark = ~thresh_dark
+
+    img_light = img_org + thresh_dark
+    print (thresh_dark)
+    #img_light = img_light
+
+    # 明部検出
+    if Threshtype == 1:
+        thresh_light = cv2.adaptiveThreshold(img_light, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,AThreshBS,AThreshC)  # 暗部検出：通常の適応的二値化
+    elif Threshtype == 0:
+        ret, thresh_light = cv2.threshold(img_light,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    else:
+        ret, thresh_light = cv2.threshold(img_light,Threshtype,255,cv2.THRESH_BINARY)
+
+    thresh_light = ~thresh_light
+    
+    thresh_light = cv2.erode(thresh_light, kernel, iterations = bright_erosion_iter)
+    thresh_light = cv2.dilate(thresh_light, kernel, iterations = bright_dilate_iter)
+    
+    img = thresh_light
+    
+    return img, img_org, img_light
+
 
 
 def makesaveheader(heads):

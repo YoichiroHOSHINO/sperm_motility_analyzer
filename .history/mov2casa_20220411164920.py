@@ -148,7 +148,7 @@ def makemovarray(MovieFolder, f, start_second, FrameRate, cropheight, cropwidth)
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     frames = FrameRate  # 調査フレーム数をフレームレートに設定＝1秒間当たりの動きを調べる
-    frameend = frames * (start_second + 2)    #スタート秒数+1分伸ばす
+    frameend = frames * (start_second + 1)    #スタート秒数+1分伸ばす
     framestart = frames * start_second
 
     array = []
@@ -241,7 +241,6 @@ def nichika(img, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dar
     img = thresh3 #.astype(np.uint8)
 
     return img, thresh2, thresh1
-
 
 def makesaveheader(heads):
     hdr = ""

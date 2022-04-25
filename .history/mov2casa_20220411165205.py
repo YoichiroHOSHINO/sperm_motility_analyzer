@@ -148,7 +148,7 @@ def makemovarray(MovieFolder, f, start_second, FrameRate, cropheight, cropwidth)
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     frames = FrameRate  # 調査フレーム数をフレームレートに設定＝1秒間当たりの動きを調べる
-    frameend = frames * (start_second + 2)    #スタート秒数+1分伸ばす
+    frameend = frames * (start_second + 1)    #スタート秒数+1分伸ばす
     framestart = frames * start_second
 
     array = []
@@ -241,6 +241,42 @@ def nichika(img, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dar
     img = thresh3 #.astype(np.uint8)
 
     return img, thresh2, thresh1
+
+# 画像二値化処理
+def nichika_new(img, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dark_dilate_iter, Threshtype, AThreshBS, AThreshC, Bright_thresh):
+
+    kernel = np.array([[1,1,1],[1,1,1],[1,1,1]], np.uint8)
+    
+    if Threshtype == 1:
+        thresh_dark = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,AThreshBS,AThreshC)  # 暗部検出：通常の適応的二値化
+    elif Threshtype == 0:
+        ret, thresh_dark = cv2.threshold(img,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    else:
+        ret, thresh_dark = cv2.threshold(img,Threshtype,255,cv2.THRESH_BINARY)
+
+    thresh_dark = cv2.erode(thresh_dark, kernel, iterations = dark_erosion_iter)
+    thresh_dark = cv2.dilate(thresh_dark, kernel, iterations = dark_dilate_iter)
+
+    img_light = img - thresh_dark
+    img_light = ~img_light
+
+    # 明部検出
+    if Threshtype == 1:
+        thresh_light = cv2.adaptiveThreshold(img_light, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,AThreshBS,AThreshC)  # 暗部検出：通常の適応的二値化
+    elif Threshtype == 0:
+        ret, thresh_light = cv2.threshold(img_light,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    else:
+        ret, thresh_light = cv2.threshold(img_light,Threshtype,255,cv2.THRESH_BINARY)
+
+    thresh_light = ~thresh_light
+    
+    thresh_light = cv2.erode(thresh_light, kernel, iterations = bright_erosion_iter)
+    thresh_light = cv2.dilate(thresh_light, kernel, iterations = bright_dilate_iter)
+    
+    img = thresh_light
+    
+    return img, thresh_dark, thresh_light
+
 
 
 def makesaveheader(heads):

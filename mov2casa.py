@@ -203,7 +203,7 @@ def makemovBWarray(BWarray, mask): #(movarray, mask, dark_erosion_iter, dark_dil
     return movBWarray
 
 # 画像二値化処理
-def nichika(img, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dark_dilate_iter, Threshtype, AThreshBS, AThreshC, Bright_thresh):
+def nichika_original(img, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dark_dilate_iter, Threshtype, AThreshBS, AThreshC, Bright_thresh):
     # 明部検出
     bright_erosion_iter = 0
     bright_dilate_iter = 1
@@ -242,6 +242,48 @@ def nichika(img, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dar
 
     return img, thresh2, thresh1
 
+# 画像二値化処理
+def nichika(img_org, bright_erosion_iter, bright_dilate_iter, dark_erosion_iter, dark_dilate_iter, Threshtype, AThreshBS, AThreshC, Bright_thresh):
+
+    kernel = np.array([[1,1,1],[1,1,1],[1,1,1]], np.uint8)
+    
+    if Threshtype == 1:
+        thresh_dark = cv2.adaptiveThreshold(img_org, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,AThreshBS,AThreshC)  # 暗部検出：通常の適応的二値化
+    elif Threshtype == 0:
+        ret, thresh_dark = cv2.threshold(img_org,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    else:
+        ret, thresh_dark = cv2.threshold(img_org,Threshtype,255,cv2.THRESH_BINARY)
+
+    thresh_dark = ~thresh_dark  # 精子を白抜きに
+
+    thresh_dark = cv2.erode(thresh_dark, kernel, iterations = dark_erosion_iter)
+    thresh_dark = cv2.dilate(thresh_dark, kernel, iterations = dark_dilate_iter)
+    
+    
+    img_light = cv2.add(img_org, thresh_dark) # 精子白抜き
+    #print (thresh_dark)
+    #img_light = img_light
+
+    # 明部検出
+    #if Threshtype == 1:
+    #    thresh_light = cv2.adaptiveThreshold(img_light, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,AThreshBS,AThreshC)  # 暗部検出：通常の適応的二値化
+    #elif Threshtype == 0:
+    ret, thresh_light = cv2.threshold(img_light,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    #else:
+    #    ret, thresh_light = cv2.threshold(img_light,Threshtype,255,cv2.THRESH_BINARY)
+
+    # thresh_light = ~thresh_light
+    
+    #tmp_thresh_light = ~thresh_light
+
+    thresh_light = cv2.erode(thresh_light, kernel, iterations = bright_erosion_iter)
+    thresh_light = cv2.dilate(thresh_light, kernel, iterations = bright_dilate_iter)
+    
+    img = thresh_light
+    
+    return img, thresh_dark, thresh_light
+
+
 
 def makesaveheader(heads):
     hdr = ""
@@ -266,8 +308,8 @@ def SetArg(conf):
     FrameRate = int(cf.loc[cf[0] == "FrameRate",1].values[0])
     MaskThreshold = int(cf.loc[cf[0] == "MaskThreshold",1].values[0])
 
-    bright_erosion_iter = int(cf.loc[cf[0] == "dark_erosion_iter",1].values[0])
-    bright_dilate_iter = int(cf.loc[cf[0] == "dark_dilate_iter",1].values[0])
+    bright_erosion_iter = int(cf.loc[cf[0] == "bright_erosion_iter",1].values[0])
+    bright_dilate_iter = int(cf.loc[cf[0] == "bright_dilate_iter",1].values[0])
     dark_erosion_iter = int(cf.loc[cf[0] == "dark_erosion_iter",1].values[0])
     dark_dilate_iter = int(cf.loc[cf[0] == "dark_dilate_iter",1].values[0])
     Threshtype = int(cf.loc[cf[0] == "Threshtype",1].values[0])
@@ -907,12 +949,14 @@ def writeResultTestImg(MovieFolder, ResultFolder, filename, movarray, mask, movB
     for k in range(df.shape[0]): #df.index:
         BWframe = cv2.circle(BWframe,(int(df[k,1]), int(df[k,2])),3,(0,0,255),-1)
     
-    frame2 = cv2.hconcat([original, BWframe])
+    #frame2 = cv2.hconcat([original, BWframe])
+    frame2 = BWframe
 
     cv2.imwrite(ResultFolder + filename + "_detect.jpg", frame2)
     cv2.imwrite(ResultFolder + filename + "_mask.jpg", mask)
     cv2.imwrite(ResultFolder + filename + "_dark.jpg", dark_dtct)
     cv2.imwrite(ResultFolder + filename + "_bright.jpg", bright_dtct)
+    cv2.imwrite(ResultFolder + filename + "_original.jpg", original)
 
     return 0
 

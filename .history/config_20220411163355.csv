@@ -1,11 +1,11 @@
 ﻿Arg,Val,Exp
 TestMode,0,1:テストモード
-MovieFolder,./MOVIES/,解析動画フォルダ
-ResultFolder,./RESULTS/,結果出力先フォルダ
+MovieFolder,D:\Documents\CASA結果\220411_new_nichika_test\MOVIES\,解析動画フォルダ
+ResultFolder,D:\Documents\CASA結果\220411_new_nichika_test\RESULTS\,結果出力先フォルダ
 cropheight,0,解析範囲の高さpixel（0：動画サイズ全体）
 cropwidth,0,解析範囲の幅pixel（0：動画サイズ全体）
 start_second,1,動画の解析開始秒数
-FrameRate,120,フレームレート
+FrameRate,60,フレームレート
 minsize,50,認識する最小サイズ（pixel）
 maxsize,1000,認識する最大サイズ（pixel）
 maxjumpframes,3,何フレーム先まで探索するか
